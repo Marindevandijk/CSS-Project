@@ -54,26 +54,28 @@ class HolmeNewmanSimulation:
         return v if u == i else u
 #this is where the connection happens or breaks
     def step(self):
-        i=random.randrange(self.N)
+        i = random.randrange(self.N)
 
-        e=self._random_incident_edge(i)
+        e = self._random_incident_edge(i)
         if e is None:
             return True 
-        u,v,k=e
-        j =self._other_endpoint(i, u, v)
+        u, v, k = e
+        j = self._other_endpoint(i, u, v)
 
         if random.random() < self.phi:
-            op_i=int(self.opinions[i])
-            candidates=self.members[op_i]
-            j_prime=random.choice(candidates)
-            self.graph.remove_edge(u,v,key=k)
-            self.graph.add_edge(i,j_prime)
+            op_i = int(self.opinions[i])
+            candidates = self.members[op_i]
+            valid_choices = [c for c in candidates if c != i]            
+            if valid_choices:
+                j_prime = random.choice(valid_choices)
+                self.graph.remove_edge(u, v, key=k)
+                self.graph.add_edge(i, j_prime)
 
         else:
-            old_op=int(self.opinions[i])
-            new_op=int(self.opinions[j])
-            if new_op!=old_op:
-                self.opinions[i]=new_op
+            old_op = int(self.opinions[i])
+            new_op = int(self.opinions[j])
+            if new_op != old_op:
+                self.opinions[i] = new_op
                 self._move_member(i, old_op, new_op)
 
         return True
