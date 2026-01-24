@@ -37,15 +37,15 @@ def estimate_phi_c_from_crossings(phi_grid, Ns, S, a=0.61):
             d0, d1 = diff[p], diff[p + 1]
             if d0 * d1 < 0:
                 # score with biggest difference, phase transition is steep
-                score = abs(d1 - d0)
-                if score > best_score:
-                    best_score = score
-                    best_phi = phi_grid[p]
+                x0=phi_grid[p]
+                x1=phi_grid[p+1]
+                exact_crossing=x0-d0*(x1-x0)/(d1-d0)
+                phis.append(exact_crossing)
+                break
+    phis= np.array(phis,float)
+    return phis.mean(),(phis.max()-phis.min())/2
 
-        phis.append(best_phi)
-    phis = np.array(phis, float)
-    phis = phis[np.isfinite(phis)]
-    return phis.mean(), (phis.max() - phis.min()) / 2
+    
 
 def plot_fig1():
     d = np.load(os.path.join(DATA_DIR, "fig1_network.npz"))
