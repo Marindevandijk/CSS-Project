@@ -19,6 +19,34 @@ def _log_binned_density(samples, N, nbins=25):
     return centers, density
 
 
+def estimate_phi_c_from_crossings(phi_grid, Ns, S, a=0.61):
+
+    # Y = n^a*S, at critical point these curves should intersect
+    Y = (Ns[:, None] ** a) * S
+    phis = []
+
+    for i in range(len(Ns) - 1):
+        # compare NS = 200 with Ns=400 for example
+        # sign change in diff,  means crossing
+        diff = Y[i] - Y[i + 1]
+
+        best_phi = np.nan
+        best_score = -1.0
+
+        for p in range(len(phi_grid) - 1):
+            d0, d1 = diff[p], diff[p + 1]
+            if d0 * d1 < 0:
+                # score with biggest difference, phase transition is steep
+                score = abs(d1 - d0)
+                if score > best_score:
+                    best_score = score
+                    best_phi = phi_grid[p]
+
+        phis.append(best_phi)
+    phis = np.array(phis, float)
+    phis = phis[np.isfinite(phis)]
+    return phis.mean(), (phis.max() - phis.min()) / 2
+
 def plot_fig1():
     d = np.load(os.path.join(DATA_DIR, "fig1_network.npz"))
     edges = d["edges"]
@@ -44,7 +72,6 @@ def plot_fig1():
 
     plt.savefig(os.path.join(FIG_DIR, "figure1.pdf"))
     plt.show()
-
 
 def plot_fig2():
     phis = [0.04, 0.458, 0.96]
@@ -85,13 +112,16 @@ def plot_fig3():
 
     a = 0.61
     b = 0.7
-    phi_c = 0.458
+    phi_c_hat, phi_c_err = estimate_phi_c_from_crossings(phi_grid, Ns, S, a=a)
+    print("Estimated phi_c=", phi_c_hat)
+    print("error range:", phi_c_hat - phi_c_err, phi_c_hat + phi_c_err)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
     for i, N in enumerate(Ns):
         ax1.plot(phi_grid, (N ** a) * S[i], "o-", markersize=3, label=f"N={N}")
-    ax1.axvline(phi_c, linestyle="--", alpha=0.6)
+
+    ax1.axvline(phi_c_hat, linestyle="--", alpha=0.6)
     ax1.set_xlabel("φ")
     ax1.set_ylabel(r"$N^{a} S$")
     ax1.set_title("Crossing plot")
@@ -99,7 +129,7 @@ def plot_fig3():
     ax1.legend()
 
     for i, N in enumerate(Ns):
-        x = (N ** b) * (phi_grid - phi_c)
+        x = (N ** b) * (phi_grid - phi_c_hat)
         y = (N ** a) * S[i]
         ax2.plot(x, y, "o", markersize=3, label=f"N={N}")
     ax2.set_xlabel(r"$N^{b}(\phi-\phi_c)$")
