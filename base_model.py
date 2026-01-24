@@ -114,3 +114,42 @@ class HolmeNewmanSimulation:
     def get_max_community_fraction(self):
         sizes = self.get_community_sizes()
         return (max(sizes)/self.N) if sizes else 0.0
+class HeterogeneousSimulation(HolmeNewmanSimulation):
+
+    def __init__(self, N=3200,k_avg=4,gamma=10,seed=None,
+                 type_probs=[0.1,0.85,0.05],
+                 type_phi_values={0:0.05, 1:0.45, 2:1.0},
+                 type_stubbornness_values={0:0.0, 1:0.5, 2:1.0}):
+        super().__init__(N=N,k_avg=k_avg,gamma=gamma,phi=0,seed=seed)
+        self.type_phi_values=type_phi_values
+        self.agent_types=np.random.choice([0,1,2],size=self.N,p=type_probs)
+        self.stubbornness=np.array(
+            [type_stubbornness_values[int(t)] for t in self.agent_types],
+            dtype=float
+        )
+    def step(self):
+        i=random.randrange(self.N)
+        e= self._random_incident_edge(i)
+        if e is None: return True
+        u,v,k =e
+        j =self._other_endpoint(i,u,v)
+
+        # lookup individual phi
+        my_type=self.agent_types[i]
+        my_phi=self.type_phi_values[my_type]
+
+        if random.random() < my_phi:
+            op_i=int(self.opinions[i])
+            candidates =self.members[op_i]
+            valid_choices =[c for c in candidates if c != i]
+            if valid_choices:
+                j_prime =random.choice(valid_choices)
+                self.graph.remove_edge(u,v,key=k)
+                self.graph.add_edge(i,j_prime)
+        else:
+            old_op =int(self.opinions[i])
+            new_op=int(self.opinions[j])
+            if new_op != old_op and random.random() < (1.0-float(self.stubbornness[i])):
+                self.opinions[i]=new_op
+                self._move_member(i,old_op,new_op)
+        return True
