@@ -142,8 +142,67 @@ def plot_fig3():
     plt.savefig(os.path.join(FIG_DIR, "figure3.pdf"))
     plt.show()
 
+def plot_fig5_hetero_scaling():
+    try:
+        d = np.load(os.path.join(DATA_DIR,"fig5_hetero_scaling.npz"))
+        Ns,phi_grid,S = d["Ns"],d["phi_grid"],d["S"]
+        a,b = 0.61,0.7
+        phi_c_new, _ = estimate_phi_c_from_crossings(phi_grid,Ns,S,a=a)
+        print(f"Hetero Phi_c: {phi_c_new:.4f}")
+
+        fig, (ax1,ax2) =plt.subplots(1,2,figsize=(13,5))
+        for i, N in enumerate(Ns):
+            ax1.plot(phi_grid,(N ** a)*S[i], "o-", markersize=3,label=f"N={N}")
+            ax2.plot((N ** b)*(phi_grid-phi_c_new),(N ** a)*S[i],"o",markersize=3)
+
+        ax1.axvline(phi_c_new,linestyle="--",color='r',label=f"New $\phi_c$")
+        ax1.set_title(f"Hetero Crossing (phi_c={phi_c_new:.3f})")
+        ax1.legend()
+        ax2.set_title("Hetero Collapse")
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIG_DIR,"figure5_hetero_scaling.pdf"))
+        plt.show()
+        return phi_c_new
+    except FileNotFoundError:
+        print("Fig 5 data missing")
+        return 0.458
+
+def plot_fig4_hetero_distribution(phi_c):
+    phis = [0.04,phi_c,0.96]
+    fig,axes =plt.subplots(3,1,figsize=(7,10),sharex=True)
+
+    for ax, phi in zip(axes,phis):
+        try:
+            fname=f"fig4_hetero_phi_{phi:.4f}.npz"
+            d=np.load(os.path.join(DATA_DIR,fname))
+            sizes=d["sizes"]
+            N =int(d["N"])
+            centers,P= _log_binned_density(sizes, N)
+            mask=P>0
+            ax.loglog(centers[mask], P[mask],"ro",mfc="none",markersize=5)
+            ax.set_ylabel("P(s)")
+            ax.text(0.95, 0.85, f"Hetero $\phi$={phi:.3f}", transform=ax.transAxes, ha="right")
+
+            if abs(phi-phi_c) < 1e-9:
+                sline = np.array([10.0, 300.0])
+                if len(P[mask]) > 0:
+                    P0 =P[mask][0]
+                    s0 =centers[mask][0]
+                    pline =P0*(sline/s0)**(-3.5)
+                    ax.loglog(sline,pline,"k--",linewidth=1,label="Slope -3.5")
+                    ax.legend()
+        except FileNotFoundError:
+            pass
+
+    axes[-1].set_xlabel("s")
+    plt.suptitle("Figure 4: Heterogeneous Distributions")
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIG_DIR, "figure4_hetero_dist.pdf"))
+    plt.show()
 
 if __name__ == "__main__":
     plot_fig1()
     plot_fig2()
     plot_fig3()
+    new_phi_c = plot_fig5_hetero_scaling()
+    plot_fig4_hetero_distribution(new_phi_c)
