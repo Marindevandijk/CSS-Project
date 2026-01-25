@@ -106,7 +106,7 @@ def run_fig5_hetero_scaling():
 
 def run_fig4_hetero_distribution():
     try:
-        d=np.load(os.path.join(DATA_DIR,"fig_5_hetero_scaling.npz"))
+        d=np.load(os.path.join(DATA_DIR,"fig5_hetero_scaling.npz"))
         phi_c=estimate_phi_c_internal(d["phi_grid"],d["Ns"],d["S"])
         print(f"Calculated Hetero Phi_c: {phi_c:.4f}")
     except FileNotFoundError:
