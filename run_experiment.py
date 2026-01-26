@@ -43,8 +43,8 @@ def run_fig2():
 
 def run_fig3():
     print('run figure 3')
-    Ns = (200, 400, 800)
-    runs_per_point = 10
+    Ns = (200, 400, 800,1600)
+    runs_per_point = 20
 
     phi_grid = np.unique(np.concatenate([
         np.linspace(0.0, 1.0, 41),
@@ -85,9 +85,10 @@ def estimate_phi_c_internal(phi_grid,Ns,S,a=0.61):
     
 def run_fig5_hetero_scaling():
     print('run figure 5')
-    Ns=(200,400,800)
-    runs_per_point=10
-    phi_grid=np.linspace(0.3,0.7,20)
+    Ns=(200,400,800,1600)
+    runs_per_point=20
+    phi_grid=np.unique(np.concatenate([np.linspace(0.0,1.0,41),np.linspace(0.3,0.4,21)]))
+    phi_grid.sort()
     probs=[0.10,0.85,0.05]
     type_stubbornness_values={0:0.0, 1:0.5, 2:1.0}
 
