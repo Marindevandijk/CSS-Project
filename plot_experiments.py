@@ -115,6 +115,7 @@ def plot_fig3():
     phi_c_hat, phi_c_err = estimate_phi_c_from_crossings(phi_grid, Ns, S, a=a)
     print("Estimated phi_c=", phi_c_hat)
     print("error range:", phi_c_hat - phi_c_err, phi_c_hat + phi_c_err)
+    print(phi_c_err)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
