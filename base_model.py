@@ -90,7 +90,7 @@ class HolmeNewmanSimulation:
                 c +=1
         return c
 #this runs the step function until the simulation ends
-    def run_until_consensus(self,max_steps=20_000_000,check_every=None,verbose=False):
+    def run_until_consensus(self,max_steps=900_000_000,check_every=None,verbose=False):
         
         if check_every is None:
             check_every =self.N
@@ -169,7 +169,7 @@ def run_once(m):
 
 def run_once_2(m):
     sim = HeterogeneousSimulation(
-        N=400, seed=0,type_probs=[0.1,0.85-m,0.05,m])
+        N=400, seed=42,type_probs=[0.1,0.85-m,0.05,m])
     return sim.run_until_consensus()
     
 
