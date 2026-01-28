@@ -1,6 +1,7 @@
 import networkx as nx
 import numpy as np
 import random
+import time
 from collections import defaultdict
 
 class HolmeNewmanSimulation:
@@ -159,10 +160,25 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
 
 def run_once(m):
     sim = HeterogeneousSimulation(
-        N=800, seed=0,type_probs=[0.1,0.85-m,0.05,m])
+        N=400, seed=0,type_probs=[0.1,0.85-m,0.05,m])
     sim.run_until_consensus()
     return sim.get_max_community_fraction()
 
-print("no mediators:", run_once(0.0))
-print("1% mediators:", run_once(0.01))
+#print("no mediators:", run_once(0.0))
+#print("1% mediators:", run_once(0.01))
 
+times = []
+
+def time_call(fn, var):
+    start = time.perf_counter()
+    result = fn(var)
+    end = time.perf_counter()
+    return result, end - start
+
+intervals = [x / 1000.0 for x in range(0, 50, 1)]
+print(intervals)
+for i in intervals:
+    res, elapsed = time_call(run_once, i)
+    print(i, elapsed)
+    times.append(elapsed)
+print(times)
