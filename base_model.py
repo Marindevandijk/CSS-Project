@@ -114,12 +114,19 @@ class HolmeNewmanSimulation:
     def get_max_community_fraction(self):
         sizes = self.get_community_sizes()
         return (max(sizes)/self.N) if sizes else 0.0
+#it finds the most popular opinion in the network  
+    def get_most_popular_opinion(self):
+        return max(
+            range(self.G_count),
+            key=lambda op: len(self.members[op])
+        )
 class HeterogeneousSimulation(HolmeNewmanSimulation):
 
     def __init__(self, N=3200,k_avg=4,gamma=10,seed=None,
                  type_probs=[0.1,0.8,0.05,0.05],
                  type_phi_values={0:0.05, 1:0.45, 2:1.0,3:0.45},
-                 type_stubbornness_values={0:0.0, 1:0.5, 2:1.0,3:0.0}):
+                 type_stubbornness_values={0:0.0, 1:0.5, 2:1.0,3:0.0},
+                 influence = 0.0):
         super().__init__(N=N,k_avg=k_avg,gamma=gamma,phi=0,seed=seed)
         self.type_phi_values=type_phi_values
         self.agent_types=np.random.choice([0,1,2,3],size=self.N,p=type_probs)
@@ -127,6 +134,7 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
             [type_stubbornness_values[int(t)] for t in self.agent_types],
             dtype=float
         )
+        self.media_influence = influence
     def step(self):
         i=random.randrange(self.N)
         e= self._random_incident_edge(i)
@@ -138,23 +146,33 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
         my_type=self.agent_types[i]
         my_phi=self.type_phi_values[my_type]
 
-        if random.random() < my_phi:
+        # with small probability get influenced by media to adopt the most popular opinion
+        if random.random() < self.media_influence:
             op_i=int(self.opinions[i])
-            if my_type ==3:
-                candidates=[n for n in range(self.N) if n!=i and int(self.opinions[n])!=op_i]
-            else:
-                candidates =self.members[op_i]
-                candidates =[c for c in candidates if c != i]
-            if candidates:
-                j_prime =random.choice(candidates)
-                self.graph.remove_edge(u,v,key=k)
-                self.graph.add_edge(i,j_prime)
-        else:
-            old_op =int(self.opinions[i])
-            new_op=int(self.opinions[j])
-            if new_op != old_op and random.random() < (1.0-float(self.stubbornness[i])):
+            new_op=self.get_most_popular_opinion()
+            if new_op != op_i and random.random() < (1.0-float(self.stubbornness[i])):
                 self.opinions[i]=new_op
-                self._move_member(i,old_op,new_op)
+                self._move_member(i,op_i,new_op)
+
+        # otherwise, continue as normal
+        else:
+            if random.random() < my_phi:
+                op_i=int(self.opinions[i])
+                if my_type ==3:
+                    candidates=[n for n in range(self.N) if n!=i and int(self.opinions[n])!=op_i]
+                else:
+                    candidates =self.members[op_i]
+                    candidates =[c for c in candidates if c != i]
+                if candidates:
+                    j_prime =random.choice(candidates)
+                    self.graph.remove_edge(u,v,key=k)
+                    self.graph.add_edge(i,j_prime)
+            else:
+                old_op =int(self.opinions[i])
+                new_op=int(self.opinions[j])
+                if new_op != old_op and random.random() < (1.0-float(self.stubbornness[i])):
+                    self.opinions[i]=new_op
+                    self._move_member(i,old_op,new_op)
         return True
 
 def run_once(m):
@@ -165,4 +183,13 @@ def run_once(m):
 
 print("no mediators:", run_once(0.0))
 print("1% mediators:", run_once(0.01))
+
+def run_once_influence(i):
+    sim = HeterogeneousSimulation(
+        N=800, seed=0, type_probs=[0.1,0.85,0.05,0.0], influence = i)
+    sim.run_until_consensus()
+    return sim.get_max_community_fraction()
+
+print("no media influence:", run_once_influence(0.0))
+print("0.1 percent chance of media influence:", run_once_influence(0.001))
 
