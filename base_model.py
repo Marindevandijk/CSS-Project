@@ -99,6 +99,9 @@ class HolmeNewmanSimulation:
             self.step()
             steps +=1
 
+            if steps % 100 == 0:
+                self.pop_op = self.get_most_popular_opinion()
+
             if steps % check_every == 0:
                 d=self.discordant_edge_count()
                 if verbose:
@@ -135,6 +138,8 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
             dtype=float
         )
         self.media_influence = influence
+        self.pop_op = self.get_most_popular_opinion()
+
     def step(self):
         i=random.randrange(self.N)
         e= self._random_incident_edge(i)
@@ -149,7 +154,7 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
         # with small probability get influenced by media to adopt the most popular opinion
         if random.random() < self.media_influence:
             op_i=int(self.opinions[i])
-            new_op=self.get_most_popular_opinion()
+            new_op = self.pop_op
             if new_op != op_i and random.random() < (1.0-float(self.stubbornness[i])):
                 self.opinions[i]=new_op
                 self._move_member(i,op_i,new_op)
@@ -181,8 +186,8 @@ def run_once(m):
     sim.run_until_consensus()
     return sim.get_max_community_fraction()
 
-print("no mediators:", run_once(0.0))
-print("1% mediators:", run_once(0.01))
+#print("no mediators:", run_once(0.0))
+#print("1% mediators:", run_once(0.01))
 
 def run_once_influence(i):
     sim = HeterogeneousSimulation(
