@@ -167,6 +167,13 @@ def run_once(m):
 #print("no mediators:", run_once(0.0))
 #print("1% mediators:", run_once(0.01))
 
+def run_once_2(m):
+    sim = HeterogeneousSimulation(
+        N=400, seed=0,type_probs=[0.1,0.85-m,0.05,m])
+    return sim.run_until_consensus()
+    
+
+
 times = []
 
 def time_call(fn, var):
@@ -178,7 +185,9 @@ def time_call(fn, var):
 intervals = [x / 1000.0 for x in range(0, 50, 1)]
 print(intervals)
 for i in intervals:
-    res, elapsed = time_call(run_once, i)
-    print(i, elapsed)
+    res, elapsed = time_call(run_once_2, i)
+    print(f"m: {i} time: {elapsed} steps_til_consensus: {res}")
     times.append(elapsed)
 print(times)
+
+
