@@ -158,26 +158,26 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
             if new_op != op_i and random.random() < (1.0-float(self.stubbornness[i])):
                 self.opinions[i]=new_op
                 self._move_member(i,op_i,new_op)
+                return True #if opinion was changed step is finished
 
         # otherwise, continue as normal
-        else:
-            if random.random() < my_phi:
-                op_i=int(self.opinions[i])
-                if my_type ==3:
-                    candidates=[n for n in range(self.N) if n!=i and int(self.opinions[n])!=op_i]
-                else:
-                    candidates =self.members[op_i]
-                    candidates =[c for c in candidates if c != i]
-                if candidates:
-                    j_prime =random.choice(candidates)
-                    self.graph.remove_edge(u,v,key=k)
-                    self.graph.add_edge(i,j_prime)
+        if random.random() < my_phi:
+            op_i=int(self.opinions[i])
+            if my_type ==3:
+                candidates=[n for n in range(self.N) if n!=i and int(self.opinions[n])!=op_i]
             else:
-                old_op =int(self.opinions[i])
-                new_op=int(self.opinions[j])
-                if new_op != old_op and random.random() < (1.0-float(self.stubbornness[i])):
-                    self.opinions[i]=new_op
-                    self._move_member(i,old_op,new_op)
+                candidates =self.members[op_i]
+                candidates =[c for c in candidates if c != i]
+            if candidates:
+                j_prime =random.choice(candidates)
+                self.graph.remove_edge(u,v,key=k)
+                self.graph.add_edge(i,j_prime)
+        else:
+            old_op =int(self.opinions[i])
+            new_op=int(self.opinions[j])
+            if new_op != old_op and random.random() < (1.0-float(self.stubbornness[i])):
+                self.opinions[i]=new_op
+                self._move_member(i,old_op,new_op)
         return True
 
 def run_once(m):
