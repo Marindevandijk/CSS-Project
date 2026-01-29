@@ -142,7 +142,9 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
         if random.random() < my_phi:
             op_i=int(self.opinions[i])
             if my_type ==3:
-                candidates=[n for n in range(self.N) if n!=i and int(self.opinions[n])!=op_i]
+                other_ops = [op for op in range(self.G_count) if self.members[op] and op != op_i]
+                op_j = int(random.choice(other_ops))
+                candidates = self.members[op_j]
             else:
                 candidates =self.members[op_i]
                 candidates =[c for c in candidates if c != i]
