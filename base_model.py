@@ -192,4 +192,15 @@ for i in intervals:
     times.append(elapsed)
 print(times)
 
+def get_max_agree_component_fraction(self):
+        G_agree = nx.Graph()
+        G_agree.add_nodes_from(range(self.N))
+        # add edges only if opinions match
+        valid_edges = []
+        for u, v, k in self.graph.edges(keys=True):
+            if self.opinions[u] == self.opinions[v]:
+                valid_edges.append((u, v))
+        G_agree.add_edges_from(valid_edges)
+        sizes = [len(c) for c in nx.connected_components(G_agree)]
+        return max(sizes) / self.N if sizes else 0.0
 
