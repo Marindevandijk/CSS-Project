@@ -169,12 +169,10 @@ def run_once(m):
 
 def run_once_2(m):
     sim = HeterogeneousSimulation(
-        N=400, seed=42,type_probs=[0.1,0.85-m,0.05,m])
+        N=400, seed=0,type_probs=[0.1,0.85-m,0.05,m])
     return sim.run_until_consensus()
     
-
-
-times = []
+steps = []
 
 def time_call(fn, var):
     start = time.perf_counter()
@@ -182,12 +180,16 @@ def time_call(fn, var):
     end = time.perf_counter()
     return result, end - start
 
-intervals = [x / 1000.0 for x in range(0, 50, 1)]
+intervals = [i / 10000 for i in range(0, 100, 2)]
 print(intervals)
-for i in intervals:
-    res, elapsed = time_call(run_once_2, i)
-    print(f"m: {i} time: {elapsed} steps_til_consensus: {res}")
-    times.append(elapsed)
-print(times)
+with open('seed0steps.txt', 'w+') as f:
+    for i in intervals:
+        res = int(run_once_2(i) / 400)
+        print(f"m: {i}, steps_til_consensus: {res}")
+        f.write(f"{i}, {res}\n")
+f.close()
+print(steps)
+
+
 
 
