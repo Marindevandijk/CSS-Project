@@ -115,6 +115,17 @@ class HolmeNewmanSimulation:
     def get_max_community_fraction(self):
         sizes = self.get_community_sizes()
         return (max(sizes)/self.N) if sizes else 0.0
+    def get_max_agree_component_fraction(self):
+        """Largest connected component if we keep ONLY edges where opinions match."""
+        G_agree = nx.Graph()
+        G_agree.add_nodes_from(range(self.N))
+
+        for u, v, k in self.graph.edges(keys=True):
+            if self.opinions[u] == self.opinions[v]:
+                G_agree.add_edge(u, v)
+
+        sizes = [len(c) for c in nx.connected_components(G_agree)]
+        return max(sizes) / self.N if sizes else 0.0
 class HeterogeneousSimulation(HolmeNewmanSimulation):
 
     def __init__(self, N=3200,k_avg=4,gamma=10,seed=None,
@@ -166,28 +177,4 @@ def run_once(m):
 
 #print("no mediators:", run_once(0.0))
 #print("1% mediators:", run_once(0.01))
-
-def run_once_2(m):
-    sim = HeterogeneousSimulation(
-        N=400, seed=0,type_probs=[0.1,0.85-m,0.05,m])
-    return sim.run_until_consensus()
-    
-
-
-times = []
-
-def time_call(fn, var):
-    start = time.perf_counter()
-    result = fn(var)
-    end = time.perf_counter()
-    return result, end - start
-
-intervals = [x / 1000.0 for x in range(0, 50, 1)]
-print(intervals)
-for i in intervals:
-    res, elapsed = time_call(run_once_2, i)
-    print(f"m: {i} time: {elapsed} steps_til_consensus: {res}")
-    times.append(elapsed)
-print(times)
-
 
