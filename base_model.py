@@ -3,6 +3,7 @@ import numpy as np
 import random
 import time
 from collections import defaultdict
+import zlib
 
 class HolmeNewmanSimulation:
     #setting up the network with its properties
@@ -168,7 +169,7 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
             [type_stubbornness_values[int(t)] for t in self.agent_types],
             dtype=float
         )
-        def step(self):
+    def step(self):
         i = random.randrange(self.N)
         e = self._random_incident_edge(i)
         if e is None:
