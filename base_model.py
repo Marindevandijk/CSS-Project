@@ -6,6 +6,14 @@ from collections import defaultdict
 
 class HolmeNewmanSimulation:
     #setting up the network with its properties
+    """
+    Implements the standard Holme-Newman model for social dynamics.
+    
+    Dynamics:
+    1. Select a random agent i.
+    2. With probability phi, i 'rewires' a connection to a random agent with the same opinion.
+    3. With probability 1-phi, i adopts the opinion of a random neighbor.
+    """
     def __init__(self,N=3200,k_avg=4,gamma=10,phi=0.458,seed=None):
         self.N=int(N)
         self.k_avg=float(k_avg)
@@ -31,8 +39,9 @@ class HolmeNewmanSimulation:
             op=int(self.opinions[i])
             self.pos_in_members[i]=len(self.members[op])
             self.members[op].append(i)
-#updating our system when someone changes their belief
     def _move_member(self,node,old_op,new_op):
+#updating our system when someone changes their belief
+"""Updates internal data structures when an agent changes opinion"""
         old_list=self.members[old_op]
         idx=self.pos_in_members[node]
         last=old_list[-1]
@@ -42,8 +51,9 @@ class HolmeNewmanSimulation:
         new_list=self.members[new_op]
         self.pos_in_members[node]=len(new_list)
         new_list.append(node)
-#it picks one random friendship for a specific person. like you ask A, "Pick one of your friends at random." A might pick B
     def _random_incident_edge(self,i):
+#it picks one random friendship for a specific person. like you ask A, "Pick one of your friends at random." A might pick B
+"""Returns a random edge connected to node i"""
         edges_i =list(self.graph.edges(i,keys=True))
         if not edges_i:
             return None
@@ -53,8 +63,8 @@ class HolmeNewmanSimulation:
     @staticmethod
     def _other_endpoint(i,u,v):
         return v if u == i else u
-#this is where the connection happens or breaks
     def step(self):
+#this is where the connection happens or breaks
         i = random.randrange(self.N)
 
         e = self._random_incident_edge(i)
@@ -80,10 +90,12 @@ class HolmeNewmanSimulation:
                 self._move_member(i, old_op, new_op)
 
         return True
+
+    def discordant_edge_count(self):
 #it scans the entire network to see if anyone is still fighting
 #it looks at every single friendship. If the two friends have different opinions, it adds 1 to the count
-#if this number is 0, it means everyone agrees with their friends. The simulation is finished
-    def discordant_edge_count(self):
+#if this number is 0, it means everyone agrees with their friends. The simulation is finished        
+"""Counts edges connecting agents with different opinions"""
         c = 0
         for u,v,k in self.graph.edges(keys=True):
             if self.opinions[u] != self.opinions[v]:
@@ -91,7 +103,7 @@ class HolmeNewmanSimulation:
         return c
 #this runs the step function until the simulation ends
     def run_until_consensus(self,max_steps=20_000_000,check_every=None,verbose=False):
-        
+"""Runs the simulation until all edges are concordant (consensus) or max_steps reached"""        
         if check_every is None:
             check_every =self.N
 
@@ -126,7 +138,24 @@ class HolmeNewmanSimulation:
 
         sizes = [len(c) for c in nx.connected_components(G_agree)]
         return max(sizes) / self.N if sizes else 0.0
+    def get_kolmogorov_complexity(self):
+"""Approximates the information content (entropy) of the opinion state using compression"""
+        state_bytes =self.opinions.tobytes()
+        compressed_data=zlib.compress(state_bytes)
+        return len(compressed_data)/len(state_bytes)
+
+    
+
+    
 class HeterogeneousSimulation(HolmeNewmanSimulation):
+"""
+    Extends the Holme Newman model to support 4 distinct agent types:
+    Types:
+    0: Soft (Phi ~ 0, Stubbornness = 0) - Pure followers
+    1: Neutral (Phi ~ Global, Stubbornness = 0) - Standard agents
+    2: Extremist (Phi = 1.0, Stubbornness = 1.0) - Never adopt, always rewire to isolate
+    3: Mediator (Phi ~ Global, Heterophily) - Rewire to connect different opinions
+    """
 
     def __init__(self, N=3200,k_avg=4,gamma=10,seed=None,
                  type_probs=[0.1,0.8,0.05,0.05],
