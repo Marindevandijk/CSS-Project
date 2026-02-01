@@ -174,16 +174,21 @@ def run_once_2(m):
     
 steps = []
 
+# used this to run the experiments while timing them, not as valuable a metric as steps 
+# because performance is different on different systems
 def time_call(fn, var):
     start = time.perf_counter()
     result = fn(var)
     end = time.perf_counter()
     return result, end - start
 
-intervals = [i / 10000 for i in range(0, 100, 2)]
+# 0.086 is the maximum we found to calculate the steps in a reasonable amount of time
+# still takes hours though
+intervals = [i / 10000 for i in range(0, 88, 2)]
 print(intervals)
 with open('seed0steps.txt', 'w+') as f:
     for i in intervals:
+        # dividing by 400 to account for all of the 400 nodes, so we only count iterations
         res = int(run_once_2(i) / 400)
         print(f"m: {i}, steps_til_consensus: {res}")
         f.write(f"{i}, {res}\n")
