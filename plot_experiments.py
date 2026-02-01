@@ -3,96 +3,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from scipy.interpolate import interp1d
+from helpers import _log_binned_density, estimate_phi_c_from_crossings, solve_consistent_hetero_params
 
 DATA_DIR = "data"
 FIG_DIR = "figures"
 os.makedirs(FIG_DIR, exist_ok=True)
-
-
-def _log_binned_density(samples, N, nbins=25):
-    samples = np.asarray(samples, dtype=float)
-    edges = np.logspace(0, np.log10(N), nbins + 1)
-    counts, _ = np.histogram(samples, bins=edges)
-    widths = edges[1:] - edges[:-1]
-    total = counts.sum()
-    density = counts / (total * widths) if total > 0 else np.zeros_like(widths)
-    centers = np.sqrt(edges[1:] * edges[:-1])
-    return centers, density
-
-
-def estimate_phi_c_from_crossings(phi_grid, Ns, S, a=0.61):
-
-    # Y = n^a*S, at critical point these curves should intersect
-    Y = (Ns[:, None] ** a) * S
-    phis = []
-
-    for i in range(len(Ns) - 1):
-        # compare NS = 200 with Ns=400 for example
-        # sign change in diff,  means crossing
-        diff = Y[i] - Y[i + 1]
-
-        best_phi = np.nan
-        best_score = -1.0
-
-        for p in range(len(phi_grid) - 1):
-            d0, d1 = diff[p], diff[p + 1]
-            if d0 * d1 < 0:
-                # score with biggest difference, phase transition is steep
-                x0=phi_grid[p]
-                x1=phi_grid[p+1]
-                exact_crossing=x0-d0*(x1-x0)/(d1-d0)
-                phis.append(exact_crossing)
-                break
-    phis= np.array(phis,float)
-    return phis.mean(),(phis.max()-phis.min())/2
-    
-def auto_find_scaling_exponents(Ns,phi_grid,S,phi_c):
-    # Searches for 'a' and 'b' that maximize overlap
-    print("Calculating optimal a and b")
-    best_a,best_b =0.61,0.7 
-    min_error =float('inf')
-    
-    a_vals =np.linspace(0.4, 0.8, 20)
-    b_vals =np.linspace(0.5, 1.0, 20)
-    
-    S_small,S_large=S[0],S[-1]
-    N_small,N_large=Ns[0],Ns[-1]
-    
-    for a in a_vals:
-        for b in b_vals:
-            x_small =(N_small**b)*(phi_grid-phi_c)
-            y_small =(N_small**a)*S_small
-            
-            x_large =(N_large**b)* (phi_grid - phi_c)
-            y_large =(N_large**a)* S_large
-            
-            min_x =max(x_small.min(),x_large.min())
-            max_x =min(x_small.max(),x_large.max())
-            
-            valid_indices =(x_large >= min_x) & (x_large <= max_x)
-            if np.sum(valid_indices)<3: continue 
-            
-            f_small =interp1d(x_small,y_small, kind='linear',fill_value="extrapolate")
-            y_small_interp =f_small(x_large[valid_indices])
-            mse =np.mean((y_small_interp - y_large[valid_indices])**2)
-            
-            if mse<min_error:
-                min_error =mse
-                best_a,best_b =a,b
-                
-    print(f"Found best fit: a={best_a:.2f}, b={best_b:.2f}")
-    return best_a,best_b
-
-def auto_find_power_law_slope(sizes):
-    y,x_edges=np.histogram(sizes, bins=25)
-    x_centers=(x_edges[:-1] + x_edges[1:])/2
-    mask=(y>0) & (x_centers>5) & (x_centers<x_centers.max()/2)
-    if np.sum(mask)<3: return 2.5 
-    log_x=np.log(x_centers[mask])
-    log_y=np.log(y[mask])
-    slope,intercept =np.polyfit(log_x,log_y,1)
-    return -slope
-    
 
 def plot_fig1():
     d = np.load(os.path.join(DATA_DIR, "fig1_network.npz"))
@@ -269,6 +184,92 @@ def plot_fig4_hetero_distribution(phi_c_filename_target):
     plt.tight_layout()
     plt.savefig(os.path.join(FIG_DIR, "figure4_hetero_dist.pdf"))
     plt.show()
+
+def plot_society_comparison():
+    try:
+        d = np.load(os.path.join(DATA_DIR, "society_comparison.npz"), allow_pickle=True)
+        results = d["results"].item()
+        phi_grid = d["phi_grid"]
+        plt.figure(figsize=(8, 6))
+        colors = {"Baseline": "black", "Polarized": "red", "Diplomatic": "blue"}
+        styles = {"Baseline": "o-", "Polarized": "s--", "Diplomatic": "^-."}
+        
+        for name, data in results.items():
+            plt.errorbar(phi_grid, data["S"], yerr=data["err"], label=name, 
+                         color=colors[name], fmt=styles[name], capsize=3, alpha=0.8)
+        
+        plt.xlabel(r"Rewiring Probability $\phi$")
+        plt.ylabel("Max Consensus Size $S_{agree}$")
+        plt.title("Society Stability Profile")
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.3)
+        plt.axhline(0.5, color='gray', linestyle=':', alpha=0.5)
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIG_DIR, "society_comparison.pdf"))
+        plt.show()
+    except FileNotFoundError: print("Society Comparison data not found.")
+
+def plot_hysteresis():
+    try:
+        d = np.load(os.path.join(DATA_DIR, "hysteresis.npz"), allow_pickle=True)
+        results = d["results"].item()
+        phi_up, phi_down = d["phi_up"], d["phi_down"]
+        fig, ax = plt.subplots(figsize=(8, 6))
+        colors = {"Polarized": "red", "Diplomatic": "blue"}
+        for name, res in results.items():
+            ax.plot(phi_up, res["up"], color=colors[name], linestyle="-", marker="^", alpha=0.6, label=f"{name} (Fwd)")
+            ax.plot(phi_down, res["down"], color=colors[name], linestyle="--", marker="v", alpha=0.9, label=f"{name} (Rev)")
+            ax.fill_between(phi_up, res["up"], res["down"][::-1], color=colors[name], alpha=0.1)
+        ax.legend()
+        ax.set_xlabel(r"Rewiring Probability $\phi$")
+        ax.set_ylabel(r"Max Consensus Size $S_{agree}$")
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIG_DIR, "hysteresis_plot.pdf"))
+        plt.show()
+    except FileNotFoundError: print("Hysteresis data not found.")
+
+def plot_complexity():
+    try:
+        d = np.load(os.path.join(DATA_DIR, "complexity.npz"), allow_pickle=True)
+        results = d["results"].item()
+        phi_grid = d["phi_grid"]
+        plt.figure(figsize=(10, 6))
+        for name, compl in results.items():
+            plt.plot(phi_grid, compl, 'o-', label=name)
+        plt.legend()
+        plt.xlabel(r"Rewiring Probability $\phi$")
+        plt.ylabel("Kolmogorov Complexity")
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIG_DIR, "kolmogorov_complexity.pdf"))
+        plt.show()
+    except FileNotFoundError: print("Complexity data not found.")
+
+def plot_stats():
+    try:
+        d = np.load(os.path.join(DATA_DIR, "stats_suite.npz"))
+        pop1, pop2 = d["mediator_pol"], d["mediator_dip"]
+        pop_base, pop_hetero = d["base_homo"], d["base_hetero"]
+        
+        _, p_val_med = stats.ttest_ind(pop1, pop2, equal_var=False)
+        _, p_val_base = stats.ttest_ind(pop_base, pop_hetero, equal_var=False)
+        
+        fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+        
+        axes[0].boxplot([pop_base, pop_hetero], patch_artist=True, boxprops=dict(facecolor="salmon"))
+        axes[0].set_xticklabels(["Homogeneous", "Heterogeneous"])
+        axes[0].set_title(f"Baseline Collapse (p={p_val_base:.1e})")
+        axes[0].set_ylabel("Max Consensus Size") # Added Y label
+        
+        axes[1].boxplot([pop1, pop2], patch_artist=True, boxprops=dict(facecolor="lightblue"))
+        axes[1].set_xticklabels(["Polarized", "Diplomatic"])
+        axes[1].set_title(f"Mediator Rescue (p={p_val_med:.1e})")
+        axes[1].set_ylabel("Max Consensus Size") # Added Y label
+        
+        plt.tight_layout()
+        plt.savefig(os.path.join(FIG_DIR, "statistical_analysis_full.pdf"))
+        plt.show()
+    except FileNotFoundError: print("Stats data not found.")
 if __name__ == "__main__":
     plot_fig1()
     plot_fig2()
@@ -277,3 +278,7 @@ if __name__ == "__main__":
     d_fig5=np.load(os.path.join(DATA_DIR,"fig5_hetero_scaling.npz"))
     sim_phi_c=estimate_phi_c_from_crossings(d_fig5["phi_grid"],d_fig5["Ns"],d_fig5["S"])[0]
     plot_fig4_hetero_distribution(sim_phi_c)
+    plot_society_comparison()
+    plot_hysteresis()
+    plot_complexity()
+    plot_stats()
