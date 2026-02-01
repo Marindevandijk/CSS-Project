@@ -103,24 +103,18 @@ class HolmeNewmanSimulation:
                 c +=1
         return c
 #this runs the step function until the simulation ends
-    def run_until_consensus(self,max_steps=20_000_000,check_every=None,verbose=False):
-        """Runs the simulation until all edges are concordant (consensus) or max_steps reached"""        
-        if check_every is None:
-            check_every =self.N
-
-        steps=0
+    def run_until_consensus(self, max_steps=None, check_every=None):
+        if check_every is None: check_every = self.N
+        if max_steps is None: max_steps = self.N * 3000
+        steps = 0
         converged = False
-        while steps<max_steps:
+        while steps < max_steps:
             self.step()
-            steps +=1
-
+            steps += 1
             if steps % check_every == 0:
-                d=self.discordant_edge_count()
-                if verbose:
-                    print(f"steps={steps},discordant={d}")
-                if d==0:
+                if self.discordant_edge_count() == 0:
+                    converged = True
                     break
-
         return steps, converged
 #it counts the community size at the end of simulation
     def get_community_sizes(self):
