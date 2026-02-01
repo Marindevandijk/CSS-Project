@@ -242,7 +242,6 @@ if __name__ == "__main__":
     run_fig2()
     run_fig3()
     run_fig5_hetero_scaling()
-    run_fig4_hetero_distribution()
     run_society_comparison()
     run_hysteresis_experiment()
     run_complexity_analysis()
