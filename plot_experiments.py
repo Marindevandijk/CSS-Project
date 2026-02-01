@@ -3,12 +3,28 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from scipy.interpolate import interp1d
+from scipy import stats
 import powerlaw
 from helpers import _log_binned_density, estimate_phi_c_from_crossings, solve_consistent_hetero_params
-
+from run_experiments import run_fig4_hetero_distribution
 DATA_DIR = "data"
 FIG_DIR = "figures"
 os.makedirs(FIG_DIR, exist_ok=True)
+
+def _ensure_fig4_data(phi_c):
+    
+    phi_c = float(np.round(phi_c, 4))
+    required_files = [
+        os.path.join(DATA_DIR, f"fig4_hetero_phi_{0.04:.4f}.npz"),
+        os.path.join(DATA_DIR, f"fig4_hetero_phi_{phi_c:.4f}.npz"),
+        os.path.join(DATA_DIR, f"fig4_hetero_phi_{0.96:.4f}.npz"),
+    ]
+
+    if not all(os.path.exists(f) for f in required_files):
+        print(f"[plot] Fig4 data missing → generating using run_fig4_hetero_distribution(phi_c={phi_c:.4f})")
+        run_fig4_hetero_distribution(phi_c)
+    else:
+        print("Fig4 data already exists")
 
 def plot_fig1():
     d = np.load(os.path.join(DATA_DIR, "fig1_network.npz"))
@@ -246,6 +262,7 @@ if __name__ == "__main__":
     plot_fig2()
     plot_fig3()
     phi_c = plot_fig5_hetero_scaling()
+    _ensure_fig4_data(phi_c)
     plot_fig4_hetero_distribution(phi_c)
     plot_society_comparison()
     plot_hysteresis()
