@@ -3,6 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 from scipy.interpolate import interp1d
+import powerlaw
 from helpers import _log_binned_density, estimate_phi_c_from_crossings, solve_consistent_hetero_params
 
 DATA_DIR = "data"
@@ -39,26 +40,27 @@ def plot_fig2():
     phis = [0.04, 0.458, 0.96]
     fig, axes = plt.subplots(3, 1, figsize=(7, 10), sharex=True)
 
-    for ax, phi in zip(axes, phis):
+    for i, (ax, phi) in enumerate(zip(axes, phis)):
         d = np.load(os.path.join(DATA_DIR, f"fig2_phi_{phi}.npz"))
         sizes = d["sizes"]
         N = int(d["N"])
 
+        fit = powerlaw.Fit(sizes, discrete=True, verbose=False)
         centers, P = _log_binned_density(sizes, N)
+
         mask = P > 0
-
-        ax.loglog(centers[mask], P[mask], "o", markerfacecolor="none", markersize=5)
+        ax.loglog(centers[mask], P[mask], "o", mfc="none")
         ax.set_ylabel("P(s)")
-        ax.text(0.95, 0.85, f"φ={phi}", transform=ax.transAxes, ha="right")
 
-        if abs(phi - 0.458) < 1e-9:
-            alpha = 3.5
-            s0 = 30.0
-            P0 = np.interp(s0, centers, P, left=np.nan, right=np.nan)
-            if np.isfinite(P0) and P0 > 0:
-                sline = np.array([10.0, 300.0])
-                pline = P0 * (sline / s0) ** (-alpha)
-                ax.loglog(sline, pline, "-", linewidth=1)
+        if i == 1:
+            label_text = fr"$\phi_c$={phi}"
+            R, p_val = fit.distribution_compare("power_law", "exponential")
+            ax.text(0.05, 0.15, f"vs Exp: R={R:.2f}, p={p_val:.2e}",
+                    transform=ax.transAxes, ha="left", fontsize=9, color="red")
+        else:
+            label_text = fr"$\phi$={phi}"
+
+        ax.text(0.95, 0.85, label_text, transform=ax.transAxes, ha="right")
 
     axes[-1].set_xlabel("s")
     plt.tight_layout()
@@ -68,119 +70,88 @@ def plot_fig2():
 
 def plot_fig3():
     d = np.load(os.path.join(DATA_DIR, "fig3_scaling.npz"))
-    Ns = d["Ns"]
-    phi_grid = d["phi_grid"]
-    S = d["S"]
+    Ns, phi_grid, S = d["Ns"], d["phi_grid"], d["S"]
 
-    a = 0.61
-    b = 0.7
-    phi_c_hat, phi_c_err = estimate_phi_c_from_crossings(phi_grid, Ns, S, a=a)
-    print("Estimated phi_c=", phi_c_hat)
-    print("error range:", phi_c_hat - phi_c_err, phi_c_hat + phi_c_err)
+    a, b = 0.61, 0.7
+    phi_c = estimate_phi_c_from_crossings(phi_grid, Ns, S, a=a)
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
 
     for i, N in enumerate(Ns):
-        ax1.plot(phi_grid, (N ** a) * S[i], "o-", markersize=3, label=f"N={N}")
+        ax1.plot(phi_grid, (N**a) * S[i], "o-", markersize=3, label=f"N={N}")
 
     ax1.axvline(phi_c, linestyle="--", alpha=0.6)
-    ax1.set_xlabel("φ")
-    ax1.set_ylabel(r"$N^{a} S$")
-    ax1.set_title("Base Crossing plot at $\phi_c={phi_c}$")
-    ax1.grid(True, alpha=0.25)
     ax1.legend()
+    ax1.set_xlabel(r"Rewiring Probability $\phi$")
+    ax1.set_ylabel(r"Scaled Order Parameter $N^a S$")
 
     for i, N in enumerate(Ns):
-        x = (N ** b) * (phi_grid - phi_c)
-        y = (N ** a) * S[i]
-        ax2.plot(x, y, "o", markersize=3, label=f"N={N}")
-    ax2.set_xlabel(r"$N^{b}(\phi-\phi_c)$")
-    ax2.set_ylabel(r"$N^{a} S$")
-    ax2.set_title("Base Data collapse")
-    ax2.grid(True, alpha=0.25)
-    ax2.legend()
+        ax2.plot((N**b) * (phi_grid - phi_c), (N**a) * S[i], "o", markersize=3)
+
+    ax2.set_xlabel(r"Rescaled Control Parameter $N^b(\phi - \phi_c)$")
+    ax2.set_ylabel(r"Scaled Order Parameter $N^a S$")
 
     plt.tight_layout()
     plt.savefig(os.path.join(FIG_DIR, "figure3.pdf"))
     plt.show()
 
+
 def plot_fig5_hetero_scaling():
-    try:
-        d=np.load(os.path.join(DATA_DIR, "fig5_hetero_scaling.npz"))
-        Ns,phi_grid,S=d["Ns"],d["phi_grid"],d["S"]
-        
-        # 1 Initial Guess
-        current_a = 0.61
-        current_phi_c, _ = estimate_phi_c_from_crossings(phi_grid,Ns,S,a=current_a)
-        
-        # 2 Optimization
-        best_a,best_b= auto_find_scaling_exponents(Ns,phi_grid,S,current_phi_c)
-        
-        # 3 Update phi_c
-        phi_c_final, _ =estimate_phi_c_from_crossings(phi_grid,Ns,S,a=best_a)
-        
-        # 4 Refine 'b' with FINAL phi_c 
-        best_a_refined,best_b_refined =auto_find_scaling_exponents(Ns,phi_grid,S,phi_c_final)
-        
-        best_a =best_a_refined
-        best_b =best_b_refined
-        print(f"Final Hetero: phi_c={phi_c_final:.4f}, a={best_a:.2f}, b={best_b:.2f}")
+    d = np.load(os.path.join(DATA_DIR, "fig5_hetero_scaling.npz"))
+    Ns, phi_grid, S, conv = d["Ns"], d["phi_grid"], d["S"], d["conv"]
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
-        for i, N in enumerate(Ns):
-            ax1.plot(phi_grid, (N ** best_a) * S[i], "o-", markersize=3, label=f"N={N}")
-            ax2.plot((N ** best_b) * (phi_grid - phi_c_final), (N ** best_a) * S[i], "o", markersize=3)
-        
-        ax1.axvline(phi_c_final, linestyle="--", color='r', label=f"New $\phi_c$")
-        ax1.set_xlabel("φ")
-        ax1.set_ylabel(r"$N^{a} S$")
-        ax1.set_title(f"Hetero Crossing ($\phi_c={phi_c_final:.3f}$)")
-        ax1.legend()
-        ax2.set_xlabel(r"$N^{b}(\phi-\phi_c)$")
-        ax2.set_ylabel(r"$N^{a} S$")
-        ax2.set_title(f"Hetero Collapse ($a={best_a:.2f}, b={best_b:.2f}$)")
-        plt.tight_layout()
-        plt.savefig(os.path.join(FIG_DIR, "figure5_hetero_scaling.pdf"))
-        plt.show()
-        return phi_c_final
-    except FileNotFoundError:
-        print("Fig 5 data missing")
-        return 0.458
+    best_a, best_b, phi_c = solve_consistent_hetero_params(Ns, phi_grid, S, conv)
 
-def plot_fig4_hetero_distribution(phi_c_filename_target):
-    phis = [0.04,phi_c_filename_target,0.96]
-    fig,axes = plt.subplots(3,1,figsize=(7,10),sharex=True)
-    
-    for ax, phi in zip(axes,phis):
-        try:
-            fname = f"fig4_hetero_phi_{phi:.4f}.npz"
-            d =np.load(os.path.join(DATA_DIR, fname))
-            sizes,N =d["sizes"],int(d["N"])
-            centers, P = _log_binned_density(sizes,N)
-            mask = P>0
-            ax.loglog(centers[mask],P[mask],"ro",mfc="none",markersize=5)
-            ax.set_ylabel("P(s)")
-            ax.text(0.95,0.85, f"Hetero $\phi$={phi:.3f}",transform=ax.transAxes,ha="right")
-            
-            if abs(phi - phi_c_filename_target) < 1e-9:
-                 calc_alpha = auto_find_power_law_slope(sizes)
-                 print(f"Calculated Alpha (Slope) for Hetero: {calc_alpha:.2f}")
-                 
-                 mask_tail=(centers[mask] > 30) 
-                 if np.sum(mask_tail) > 0:
-                     tail_idx =np.where(mask_tail)[0][0]
-                     s0 =centers[mask][tail_idx]
-                     P0 =P[mask][tail_idx]
-                     sline=np.array([10.0,1000.0])
-                     pline=P0*(sline/s0)**(-calc_alpha)
-                     ax.loglog(sline,pline, "k--",linewidth=1.5,label=f"Fit Slope -{calc_alpha:.2f}")
-                     ax.legend()
-            
-        except FileNotFoundError: 
-            print(f"Data file for phi={phi} not found (Checked: {fname})")
-            
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(13, 5))
+
+    for i, N in enumerate(Ns):
+        ax1.plot(phi_grid, (N**best_a) * S[i], "o-", markersize=3, label=f"N={N}")
+        ax2.plot((N**best_b) * (phi_grid - phi_c), (N**best_a) * S[i], "o", markersize=3)
+
+    ax1.axvline(phi_c, linestyle="--", color="r", label=f"phi_c={phi_c:.3f}")
+    ax1.legend()
+    ax1.set_xlabel(r"Rewiring Probability $\phi$")
+    ax1.set_ylabel(r"Scaled Order Parameter $N^a S$")
+
+    ax2.set_xlabel(r"Rescaled Control Parameter $N^b(\phi - \phi_c)$")
+    ax2.set_ylabel(r"Scaled Order Parameter $N^a S$")
+
+    plt.tight_layout()
+    plt.savefig(os.path.join(FIG_DIR, "figure5_hetero_scaling.pdf"))
+    plt.show()
+
+    return float(phi_c)
+
+
+def plot_fig4_hetero_distribution(target_phi_c):
+    phis = [0.04, float(target_phi_c), 0.96]
+    fig, axes = plt.subplots(3, 1, figsize=(7, 10), sharex=True)
+
+    for i, (ax, phi) in enumerate(zip(axes, phis)):
+        d = np.load(os.path.join(DATA_DIR, f"fig4_hetero_phi_{phi:.4f}.npz"))
+        sizes = d["sizes"]
+        N = int(d["N"])
+
+        if len(sizes) > 100:
+            fit = powerlaw.Fit(sizes, discrete=True, verbose=False)
+
+        centers, P = _log_binned_density(sizes, N)
+        mask = P > 0
+        ax.loglog(centers[mask], P[mask], "ro", mfc="none")
+        ax.set_ylabel("P(s)")
+
+        if i == 1:
+            label_text = fr"Hetero $\phi_c$={phi:.3f}"
+            if len(sizes) > 100:
+                R, p_val = fit.distribution_compare("power_law", "exponential")
+                ax.text(0.05, 0.15, f"vs Exp: R={R:.2f}, p={p_val:.2e}",
+                        transform=ax.transAxes, ha="left", fontsize=9, color="blue")
+        else:
+            label_text = fr"Hetero $\phi$={phi:.3f}"
+
+        ax.text(0.95, 0.85, label_text, transform=ax.transAxes, ha="right")
+
     axes[-1].set_xlabel("s")
-    plt.suptitle("Figure 4: Heterogeneous Distributions")
     plt.tight_layout()
     plt.savefig(os.path.join(FIG_DIR, "figure4_hetero_dist.pdf"))
     plt.show()
@@ -274,10 +245,8 @@ if __name__ == "__main__":
     plot_fig1()
     plot_fig2()
     plot_fig3()
-    new_phi_c = plot_fig5_hetero_scaling()
-    d_fig5=np.load(os.path.join(DATA_DIR,"fig5_hetero_scaling.npz"))
-    sim_phi_c=estimate_phi_c_from_crossings(d_fig5["phi_grid"],d_fig5["Ns"],d_fig5["S"])[0]
-    plot_fig4_hetero_distribution(sim_phi_c)
+    phi_c = plot_fig5_hetero_scaling()
+    plot_fig4_hetero_distribution(phi_c)
     plot_society_comparison()
     plot_hysteresis()
     plot_complexity()
