@@ -22,7 +22,6 @@ This project studies a network model of belief dynamics to understand how intera
 This package is written in Python 3 and requires the following packages:
 
 - `numpy`
-- `matplotlib`
 - `networkx`
 - `scipy`
 - `zlib`
