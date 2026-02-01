@@ -6,7 +6,7 @@ from scipy.interpolate import interp1d
 from scipy import stats
 import powerlaw
 from helpers import _log_binned_density, estimate_phi_c_from_crossings, solve_consistent_hetero_params
-from run_experiments import run_fig4_hetero_distribution
+from run_experiment import run_fig4_hetero_distribution
 DATA_DIR = "data"
 FIG_DIR = "figures"
 os.makedirs(FIG_DIR, exist_ok=True)
