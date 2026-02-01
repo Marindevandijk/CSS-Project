@@ -168,34 +168,51 @@ class HeterogeneousSimulation(HolmeNewmanSimulation):
             [type_stubbornness_values[int(t)] for t in self.agent_types],
             dtype=float
         )
-    def step(self):
-        i=random.randrange(self.N)
-        e= self._random_incident_edge(i)
-        if e is None: return True
-        u,v,k = e
-        j = self._other_endpoint(i,u,v)
+        def step(self):
+        i = random.randrange(self.N)
+        e = self._random_incident_edge(i)
+        if e is None:
+            return True
 
-        # lookup individual phi
-        my_type=self.agent_types[i]
-        my_phi=self.type_phi_values[my_type]
+        u,v,k =e
+        j = v if u == i else u
+
+        my_type = int(self.agent_types[i])
+        my_phi = float(self.type_phi_values.get(my_type, 0.45))
 
         if random.random() < my_phi:
-            op_i=int(self.opinions[i])
-            if my_type ==3:
-                candidates=[n for n in range(self.N) if n!=i and int(self.opinions[n])!=op_i]
+            op_i = int(self.opinions[i])
+            j_prime = None
+
+            if my_type == 3:
+                # Mediator: rewire to a different opinion group
+                available_other_ops = [op for op in range(self.G_count)
+                                       if op != op_i and len(self.members[op]) > 0]
+                if available_other_ops:
+                    target_op = random.choice(available_other_ops)
+                    j_prime = random.choice(self.members[target_op])
+
             else:
-                candidates =self.members[op_i]
-                candidates =[c for c in candidates if c != i]
-            if candidates:
-                j_prime =random.choice(candidates)
+                # Standard: rewire to same opinion group
+                candidates = self.members[op_i]
+                if len(candidates) > 1:
+                    valid_choices = [c for c in candidates if c != i]
+                    if valid_choices:
+                        j_prime = random.choice(valid_choices)
+
+            if j_prime is not None:
                 self.graph.remove_edge(u,v,key=k)
                 self.graph.add_edge(i,j_prime)
+
         else:
-            old_op =int(self.opinions[i])
-            new_op=int(self.opinions[j])
-            if new_op != old_op and random.random() < (1.0-float(self.stubbornness[i])):
-                self.opinions[i]=new_op
-                self._move_member(i,old_op,new_op)
+            old_op = int(self.opinions[i])
+            new_op = int(self.opinions[j])
+
+            if new_op != old_op:
+                if random.random() < (1.0 - float(self.stubbornness[i])):
+                    self.opinions[i] = new_op
+                    self._move_member(i, old_op, new_op)
+
         return True
 
 def run_once(m):
