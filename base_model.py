@@ -109,6 +109,7 @@ class HolmeNewmanSimulation:
             check_every =self.N
 
         steps=0
+        converged = False
         while steps<max_steps:
             self.step()
             steps +=1
@@ -120,7 +121,7 @@ class HolmeNewmanSimulation:
                 if d==0:
                     break
 
-        return steps
+        return steps, converged
 #it counts the community size at the end of simulation
     def get_community_sizes(self):
         return [len(c) for c in nx.connected_components(self.graph)]
