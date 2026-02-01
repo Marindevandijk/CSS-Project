@@ -148,7 +148,7 @@ class HolmeNewmanSimulation:
 
     
 class HeterogeneousSimulation(HolmeNewmanSimulation):
-"""
+    """
     Extends the Holme Newman model to support 4 distinct agent types:
     Types:
     0: Soft (Phi ~ 0, Stubbornness = 0) - Pure followers
