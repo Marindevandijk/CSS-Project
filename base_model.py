@@ -40,8 +40,8 @@ class HolmeNewmanSimulation:
             self.pos_in_members[i]=len(self.members[op])
             self.members[op].append(i)
     def _move_member(self,node,old_op,new_op):
-#updating our system when someone changes their belief
-"""Updates internal data structures when an agent changes opinion"""
+        #updating our system when someone changes their belief
+        """Updates internal data structures when an agent changes opinion"""
         old_list=self.members[old_op]
         idx=self.pos_in_members[node]
         last=old_list[-1]
@@ -52,8 +52,8 @@ class HolmeNewmanSimulation:
         self.pos_in_members[node]=len(new_list)
         new_list.append(node)
     def _random_incident_edge(self,i):
-#it picks one random friendship for a specific person. like you ask A, "Pick one of your friends at random." A might pick B
-"""Returns a random edge connected to node i"""
+        #it picks one random friendship for a specific person. like you ask A, "Pick one of your friends at random." A might pick B
+        """Returns a random edge connected to node i"""
         edges_i =list(self.graph.edges(i,keys=True))
         if not edges_i:
             return None
@@ -95,7 +95,7 @@ class HolmeNewmanSimulation:
 #it scans the entire network to see if anyone is still fighting
 #it looks at every single friendship. If the two friends have different opinions, it adds 1 to the count
 #if this number is 0, it means everyone agrees with their friends. The simulation is finished        
-"""Counts edges connecting agents with different opinions"""
+        """Counts edges connecting agents with different opinions"""
         c = 0
         for u,v,k in self.graph.edges(keys=True):
             if self.opinions[u] != self.opinions[v]:
@@ -103,7 +103,7 @@ class HolmeNewmanSimulation:
         return c
 #this runs the step function until the simulation ends
     def run_until_consensus(self,max_steps=20_000_000,check_every=None,verbose=False):
-"""Runs the simulation until all edges are concordant (consensus) or max_steps reached"""        
+        """Runs the simulation until all edges are concordant (consensus) or max_steps reached"""        
         if check_every is None:
             check_every =self.N
 
@@ -139,7 +139,7 @@ class HolmeNewmanSimulation:
         sizes = [len(c) for c in nx.connected_components(G_agree)]
         return max(sizes) / self.N if sizes else 0.0
     def get_kolmogorov_complexity(self):
-"""Approximates the information content (entropy) of the opinion state using compression"""
+        """Approximates the information content (entropy) of the opinion state using compression"""
         state_bytes =self.opinions.tobytes()
         compressed_data=zlib.compress(state_bytes)
         return len(compressed_data)/len(state_bytes)
